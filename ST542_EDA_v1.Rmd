@@ -1,0 +1,198 @@
+---
+title: "ST542_FinalProject_EDA"
+author: "Teddie Hall"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Import data set
+
+16481 total observations 
+```{r}
+dat <- read.csv("ISSP_OECD2015.csv", header = TRUE)
+dat
+
+print(summary(dat))
+```
+
+Drop rows with missing values
+
+- 15517 observations after removing missing numerical variables
+- 13696 observations 
+```{r}
+library("dplyr")
+
+dat.dropped <- na.omit(dat)
+summary(dat.dropped)
+
+dat.dropped <- na.omit(dat.dropped %>% filter(sector != c("")
+                                            #& isco != c("")
+                                            & fulltime != c("")
+                                            & union != c("")
+                                            & relmgmt != c("")
+                                            & jobsec != c("")))
+summary(dat.dropped)
+```
+
+```{r}
+missing <- na.omit(dat %>% filter(sector == c("")
+                                            | isco == c("")
+                                            | fulltime == c("")
+                                            | union == c("")
+                                            | relmgmt == c("")
+                                            | jobsec == c("")))
+missing
+```
+
+Functions for EDA
+```{r}
+# Discrete data function
+# Prints table with counts of each category and the proportion 
+# of the data represented by each category 
+disc.eda <- function(x){
+  df.x <- data.frame(categories=x)
+  tbl <- df.x %>% group_by(categories) %>% 
+  summarise(total_count=n(),
+            .groups = 'drop')
+  tbl$percentage <- tbl$total_count/length(dat.dropped[,1])
+  return(tbl)
+}
+
+# Continuous data function 
+# Print summary statistics and boxplot, Q-Q plot, and histogram
+cts.eda <- function(x, varname) {
+  print(summary(x))
+  
+  boxplot(x, main=paste("Boxplot of", varname))
+  qqnorm(x, main=paste("Q-Q Plot of", varname))
+  qqline(x)
+  hist(x, main=paste("Histogram of", varname))
+}
+```
+
+```{r}
+country.tbl <- disc.eda(dat.dropped$country)
+country.tbl
+```
+
+```{r}
+sex.tbl <- disc.eda(dat.dropped$sex)
+sex.tbl
+```
+
+```{r}
+sector.tbl <- disc.eda(dat.dropped$sector)
+sector.tbl
+```
+
+```{r}
+isco.tbl <- disc.eda(dat.dropped$isco)
+isco.tbl
+```
+
+```{r}
+fulltime.tbl <- disc.eda(dat.dropped$fulltime)
+fulltime.tbl
+```
+
+```{r}
+union.tbl <- disc.eda(dat.dropped$union)
+union.tbl
+```
+
+```{r}
+relmgmt.tbl <- disc.eda(dat.dropped$relmgmt)
+relmgmt.tbl
+```
+
+```{r}
+jobsec.tbl <- disc.eda(dat.dropped$jobsec)
+jobsec.tbl
+```
+
+```{r}
+cts.eda(dat.dropped$age,"age")
+```
+
+```{r}
+cts.eda(dat.dropped$ltu,"ltu")
+```
+
+```{r}
+cts.eda(dat.dropped$unemp,"unemp")
+```
+
+```{r}
+cts.eda(dat.dropped$eprc,"eprc")
+```
+
+More Plots
+```{r}
+library(RColorBrewer)
+coul <- brewer.pal(5, "Set2") 
+
+tbl <- dat.dropped %>% group_by(country) %>% 
+  summarise(EPRC = mean(eprc))
+tbl.sorted = arrange(tbl, EPRC)
+
+
+par(mar = c(7.1, 4.1, 4.1, 2.1))
+barplot(tbl.sorted$EPRC, names.arg = tbl.sorted$country, 
+        space=0.1, 
+        font.axis=1, 
+        las=2, 
+        col="#69b3a2", 
+        border=NA,
+        main="EPRC in each country", 
+        ylab = "EPRC")
+```
+
+```{r}
+dat.dropped$jobsec = as.factor(dat.dropped$jobsec)
+
+tbl <- dat.dropped %>% group_by(jobsec) %>% 
+  summarise(EPRC = mean(eprc))
+tbl.sorted = arrange(tbl, EPRC)
+
+tbl
+
+par(mar = c(7.5, 4.1, 4.1, 2.1))
+barplot(tbl$EPRC, names.arg=tbl$jobsec, 
+        space=0.1, 
+        font.axis=1, 
+        las=2, 
+        col="#69b3a2", 
+        border=NA,
+        main="Mean EPRC for each Perceived Job Security Category", 
+        ylab = "EPRC")
+```
+
+```{r}
+par(mar = c(7.5, 4.1, 4.1, 2.1))
+dat.dropped$jobsec<- factor(dat.dropped$jobsec , levels=c("Strongly disagree", "Disagree", "Neither nor", "Agree", "Strongly agree"))
+plot(dat.dropped$jobsec, dat.dropped$eprc, las=2, xlab="", ylab="EPRC",main="EPRC per Job Security Category")
+```
+
+Spain is the outlier in unemp because there are a lot of temp workers (not covered by employment protections for regular workers, so Spain)
+```{r}
+library(RColorBrewer)
+coul <- brewer.pal(5, "Set2") 
+
+tbl <- dat.dropped %>% group_by(country) %>% 
+  summarise(unemp = mean(unemp))
+tbl.sorted = arrange(tbl, unemp)
+
+par(mar = c(7.1, 4.1, 4.1, 2.1))
+barplot(tbl.sorted$unemp, names.arg = tbl.sorted$country, 
+        space=0.1, 
+        font.axis=1, 
+        las=2, 
+        col="#69b3a2", 
+        border=NA,
+        main="Unemployment in each country", 
+        ylab = "Unemployment")
+```
+
+
