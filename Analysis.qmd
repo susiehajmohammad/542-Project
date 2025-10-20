@@ -1,0 +1,52 @@
+---
+title: "Analysis"
+author: "Susie and Teddie"
+format: pdf
+---
+Packages: 
+
+```{r}
+library(tidyverse)
+library(MASS)
+```
+
+
+Read in data: 
+```{r}
+dat <- read.csv("ISSP_OECD2015.csv", header = TRUE)
+dat
+
+print(summary(dat))
+```
+
+Drop rows with missing values, except for ISCO column. (Per PI)
+```{r}
+dat.dropped <- na.omit(dat)
+summary(dat.dropped)
+
+dat.dropped <- na.omit(dat.dropped %>% filter(sector != c("")
+                                            #& isco != c("")
+                                            & fulltime != c("")
+                                            & union != c("")
+                                            & relmgmt != c("")
+                                            & jobsec != c("")))
+summary(dat.dropped)
+```
+
+## Multilevel ordinal logistic regression
+Perform multilevel ordinal logistic regression using polr() function from MASS package.
+
+Response, y = jobsec.  5 level ordinal response. 
+
+
+```{r}
+
+fit <- polr(jobsec~ eprc + relmgmt + unemp +ltu + sex + age + sector + fulltime + union, data = dat.dropped)
+
+fit
+
+```
+
+
+
+
