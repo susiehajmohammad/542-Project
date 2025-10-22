@@ -1,0 +1,34 @@
+---
+title: "EDA using tidyverse"
+author: "Susie"
+format: pdf
+---
+
+Packages: 
+
+```{r}
+library(tidyverse)
+
+```
+
+Read in data: 
+```{r}
+data <- read_csv("ISSP_OECD2015.csv")
+data
+
+glimpse(data)
+```
+
+Remove na observations: 
+
+```{r}
+data_clean <- data%>%
+  tidyr::drop_na()
+
+data_clean1 <- data%>%
+  dplyr::select(-isco)%>%
+  tidyr::drop_na()
+```
+
+
+
