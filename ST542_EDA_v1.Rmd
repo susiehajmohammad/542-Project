@@ -11,7 +11,7 @@ Import data set
 
 16481 total observations 
 ```{r}
-dat <- read.csv("ISSP_OECD2015.csv", header = TRUE)
+dat <- read.csv("ISSP_OECD2015_v2.csv", header = TRUE)
 dat
 
 print(summary(dat))
@@ -195,4 +195,94 @@ barplot(tbl.sorted$unemp, names.arg = tbl.sorted$country,
         ylab = "Unemployment")
 ```
 
+Visualization to show relationship between EPRC, relmgmt, and jobsec
+```{r}
+dat.dropped$jobsec <- factor(dat.dropped$jobsec , levels=c("Strongly disagree", "Disagree", "Neither nor", "Agree", "Strongly agree"))
+dat.dropped$relmgmt <- factor(dat.dropped$relmgmt , levels=c("Very bad", "Quite bad", "Neither nor", "Quite good", "Very good"))
+
+med.eprc = median(unique(dat.dropped$eprc))
+med.eprc
+
+# Rows with low eprc
+dat.low.eprc = dat.dropped %>% filter(eprc < med.eprc)
+
+# Rows with high eprc
+dat.high.eprc = dat.dropped %>% filter(eprc >= med.eprc)
+
+tbl.high.eprc = table(dat.high.eprc$relmgmt, dat.high.eprc$jobsec)
+tbl.high.eprc
+```
+
+```{r}
+barplot(height=tbl.high.eprc[1,1:5], main="Perceived Job Security when Relmgmt is Very bad")
+```
+
+```{r}
+colorlist = c("#190933", "#665687", "#B084CC", "#ACFCD9", "#5DD9C1")
+barplot(tbl.high.eprc, beside=TRUE, col=colorlist,
+        main="Perceived Job Security when EPRC is High")
+legend("left", legend=rownames(tbl.high.eprc), bty="n", 
+       title="Relationship with Management",
+       fill=colorlist)
+```
+
+```{r}
+tbl.low.eprc = table(dat.low.eprc$relmgmt, dat.low.eprc$jobsec)
+
+colorlist = c("#190933", "#665687", "#B084CC", "#ACFCD9", "#5DD9C1")
+barplot(tbl.low.eprc, beside=TRUE, col=colorlist,
+        main="Perceived Job Security when EPRC is Low")
+legend("left", legend=rownames(tbl.low.eprc), bty="n", 
+       title="Relationship with Management",
+       fill=colorlist)
+```
+
+Want a similar plot when bars for jobsec just for relmgmt=Very bad, side-by-side of high/low eprc
+```{r}
+verybad.tbl <- rbind(tbl.low.eprc[1,1:5], tbl.high.eprc[1,1:5])
+rownames(verybad.tbl) <- c("Low EPRC", "High EPRC")
+verybad.tbl
+```
+
+```{r}
+colorlist2 = c("#665687", "#B084CC")
+barplot(verybad.tbl, beside=TRUE, col=colorlist2,
+        main="Job Security When Relationship with Management is Very Bad")
+legend("topleft", legend=rownames(verybad.tbl), bty="n", 
+       fill=colorlist2)
+```
+
+```{r}
+quitebad.tbl <- rbind(tbl.low.eprc[2,1:5], tbl.high.eprc[2,1:5])
+rownames(quitebad.tbl) <- c("Low EPRC", "High EPRC")
+
+colorlist2 = c("#665687", "#B084CC")
+barplot(quitebad.tbl, beside=TRUE, col=colorlist2,
+        main="Job Security When Relationship with Management is Quite Bad")
+legend("topleft", legend=rownames(quitebad.tbl), bty="n", 
+       fill=colorlist2)
+```
+
+```{r}
+bad.tbl <- verybad.tbl+quitebad.tbl
+verybad.tbl
+quitebad.tbl
+bad.tbl
+```
+
+```{r}
+barplot(bad.tbl, beside=TRUE, col=colorlist2,
+        main="Job Security When Relationship with Management is Bad")
+legend("topleft", legend=rownames(bad.tbl), bty="n", 
+       fill=colorlist2)
+```
+
+```{r}
+dat.high.eprc
+```
+
+
+```{r}
+dat.low.eprc
+```
 
