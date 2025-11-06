@@ -7,8 +7,11 @@ format: pdf
 Packages: 
 
 ```{r}
+#|warning: false
+#|message: false
 library(tidyverse)
-
+library(GGally)
+library(lme4)
 ```
 
 Read in data: 
@@ -19,16 +22,183 @@ data
 glimpse(data)
 ```
 
-Remove na observations: 
+Drop isco variable, then remove observations with missing data: 
 
 ```{r}
 data_clean <- data%>%
-  tidyr::drop_na()
-
-data_clean1 <- data%>%
   dplyr::select(-isco)%>%
   tidyr::drop_na()
+
+data_clean$jobsec <- factor(data_clean$jobsec, ordered = TRUE, 
+                             levels = c("Strongly disagree", "Disagree", "Neither nor", "Agree", "Strongly agree"))
+
+data_clean$relmgmt <- factor(data_clean$relmgmt, ordered = TRUE, 
+                             levels = c("Very bad", "Quite bad", "Neither nor", "Quite good", "Very good"))
+
+
+glimpse(data_clean)
 ```
+
+Number of usable observations from each country: 
+
+```{r}
+table(data_clean$country)
+```
+
+Summary statistics on numeric variables:
+
+```{r}
+numeric_vars <- data_clean %>%
+  dplyr::select(age, unemp, ltu, eprc) 
+  
+numeric_vars%>%
+  summary()
+
+```
+
+
+Age distributions per country: 
+
+```{r}
+ggplot(data_clean, aes(x = age, color = country)) + 
+      geom_density()+
+      facet_wrap(vars(country))+
+  theme_light()
+```
+
+
+Distribution of jobsec levels: 
+
+```{r}
+table(data_clean$jobsec)
+
+jobsec_summary <- data_clean %>%
+  count(jobsec) %>%
+  mutate(prop = n / sum(n))
+
+ggplot(jobsec_summary, aes(x = jobsec, y = prop, fill = jobsec)) +
+  geom_col()+
+  theme_classic()
+
+
+ggplot(data_clean, aes(x = jobsec, fill = jobsec)) + 
+      geom_bar()+
+      facet_wrap(vars(country))+
+      coord_flip()+
+  labs(x = "Job Security", y="Count")+
+  theme_classic()
+
+```
+
+Distribution of relmgmt: 
+
+```{r}
+
+data_clean %>%
+  count(relmgmt) %>%
+  mutate(prop = n / sum(n))
+
+
+ggplot(data_clean, aes(x = relmgmt, fill = relmgmt)) + 
+      geom_bar()+
+      facet_wrap(vars(country))+
+      coord_flip()+
+  labs(x = "Relationship with Management", y="Count")+
+  theme_classic()
+```
+
+Two-way contingency jobsec and relmgmt: 
+
+```{r}
+table(data_clean$jobsec, data_clean$relmgmt)
+
+
+ggplot(data_clean, aes(x = relmgmt, fill = jobsec)) +
+  geom_bar(position = "dodge")+
+  theme_classic()
+```
+
+
+country eprc values:
+```{r}
+
+eprc_country <- data_clean %>%
+  group_by(country) %>%
+  summarise(eprc = mean(eprc)) %>%
+  arrange(desc(eprc))
+
+eprc_country
+
+ggplot(eprc_country, aes(x=reorder(country, eprc), y=eprc))+
+  geom_col(fill= "#9caf88")+ 
+  theme_classic()+
+  labs(x = "Country",
+      y = "Employment Protection Score (eprc)")+
+  coord_flip()
+  
+```
+
+
+Long term unemployement rates per country: 
+
+```{r}
+ltu_country <- data_clean %>%
+  group_by(country) %>%
+  summarise(ltu = mean(ltu)) %>%
+  arrange(desc(ltu))
+
+eprc_country
+
+ggplot(ltu_country, aes(x=reorder(country, ltu), y=ltu))+
+  geom_col(fill= "#9caf88")+ 
+  theme_classic()+
+  labs(x = "Country",
+      y = "Long Term Unemployment Rate")+
+  coord_flip()
+```
+
+Short term unemployement rates per country: 
+
+```{r}
+unemp_country <- data_clean %>%
+  group_by(country) %>%
+  summarise(unemp = mean(unemp)) %>%
+  arrange(desc(unemp))
+
+eprc_country
+
+ggplot(unemp_country, aes(x=reorder(country, unemp), y=unemp))+
+  geom_col(fill= "#9caf88")+ 
+  theme_classic()+
+  labs(x = "Country",
+      y = "Short Term Unemployment Rate")+
+  coord_flip()
+```
+
+
+Correlation on numeric country variables: 
+
+```{r}
+numeric_vars%>%
+  dplyr::select(-age)%>%
+  ggpairs()
+```
+
+No correlations exceed 0.7, no concerns for multicollinearity. 
+
+ltu and unemp look right skewed, do we need to take the log to make it normal before modeling? 
+
+
+Do we need random effect: 
+
+```{r}
+
+null_model <- lmer(as.numeric(jobsec) ~ 1 + (1 | country), data = data_clean)
+summary(null_model)
+
+```
+
+ICC = (.07497)/((.07497)+(1.09252)) = 0.064, ~6.4% of variance is between countries.  Non trivial so model should include random effects.  Will use clmm for mixed effects model, instead of clm.
 
 
 

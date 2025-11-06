@@ -21,80 +21,83 @@ glimpse(data)
 ```
 
 Drop rows with missing values, except for ISCO column. (Per PI)
+
 ```{r}
 data_clean <- data%>%
-  tidyr::drop_na()
-
-data_clean1 <- data%>%
   dplyr::select(-isco)%>%
   tidyr::drop_na()
 
-```
-
-## Multilevel ordinal logistic regression
-Perform multilevel ordinal logistic regression using polr() function from MASS package.
-
-Response, y = jobsec.  5 level ordinal response. 
-
-
-```{r}
-
-data_clean1$jobsec <- factor(data_clean1$jobsec, ordered = TRUE, 
+data_clean$jobsec <- factor(data_clean$jobsec, ordered = TRUE, 
                              levels = c("Strongly disagree", "Disagree", "Neither nor", "Agree", "Strongly agree"))
 
-data_clean1$relmgmt <- factor(data_clean1$relmgmt, ordered = F, 
-                             levels = c("Very bad", "Quite bad", "Neither nor", "Quite good", "Very good"))
+#data_clean <- data_clean%>%
+#  filter(relmgmt %in% c("Very bad", "Quite bad"))
+ 
+data_clean$rmgt3 <- data_clean$relmgmt
+data_clean$rmgt3[data_clean$relmgmt %in% c("Very bad", "Quite bad")] <- "Bad"
+data_clean$rmgt3[data_clean$relmgmt %in% c("Very good", "Quite good")] <- "Good"
+data_clean$rmgt3 <- factor(data_clean$rmgt3)
+
+#data_clean$relmgmt <- factor(data_clean$relmgmt, ordered = F, 
+                             #levels = c("Very bad", "Quite bad", "Neither nor", "Quite good", "Very good"))
 
 
-fit <- polr(jobsec~ eprc * relmgmt + unemp +ltu + sex + age + sector + fulltime + union, data = data_clean1)
-
-fit
+glimpse(data_clean)
 ```
+Response, y = jobsec.  5 level ordinal response. 
 
-```{r}
-summary(fit)
-```
-
-
-```{r}
-
-confint.default(fit)
-
-```
-The effect of eprc decreases if you go from neither nor to very good relmt. 
-
-
-```{r}
-#predict(fit, type = "probs")
-newdata <- data_clean1[1,]
-predict(fit, newdata = newdata, type = "probs")
-newdata2 <- newdata
-newdata2$relmgmt <- "Very bad"
-predict(fit, newdata = newdata2, type = "probs")
-newdata2$relmgmt <- "Very good"
-predict(fit, newdata = newdata2, type = "probs")
-
-
-dat <- rbind(newdata, newdata, newdata, newdata, newdata)
-dat$relmgmt <- c("Very bad", "Quite bad", "Neither nor", "Quite good", "Very good")
-predict(fit, newdata = dat, type = "probs") %>% matplot(type = "b")
-```
-
-
-
+Fixed effect with clm(): 
 
 ```{r}
 
-fit0 <- clm(jobsec~ relmgmt + unemp +ltu + sex + age + sector + fulltime + union, data = data_clean1)
+fit0 <- clm(jobsec~ relmgmt + unemp +ltu + sex + age + sector + fulltime + union, data = data_clean)
 
-fit1 <- clm(jobsec~ eprc + relmgmt + unemp +ltu + sex + age + sector + fulltime + union, data = data_clean1)
+fit1 <- clm(jobsec~ eprc + relmgmt + unemp +ltu + sex + age + sector + fulltime + union, data = data_clean)
 
-fit2 <- clm(jobsec~ eprc * relmgmt + unemp +ltu + sex + age + sector + fulltime + union, data = data_clean1)
+fit2 <- clm(jobsec~ eprc * relmgmt + unemp +ltu + sex + age + sector + fulltime + union, data = data_clean)
 
 summary(fit1)
 summary(fit2)
 
 anova(fit0, fit1, fit2)
+
+anova(fit0, fit2)
+
+```
+
+Ordinal logistic regression mixed effects model with country as random effect, with clmm(): 
+
+```{r}
+fit3 <- clmm(jobsec~ eprc * rmgt3 + unemp +ltu + sex + age + sector + fulltime + union + (1|country), data = data_clean)
+
+summary(fit3)
+```
+
+
+```{r}
+AIC(fit1,fit2,fit3)
+BIC(fit1,fit2,fit3)
+```
+
+
+
+
+
+Odds: 
+
+bad neutral good, some way to combine odds? 
+
+Job security 5 levels.  
+
+
+Graphs.  3 graphs, 5 lines each.  Xaxis is eprc, y axis is probability of a specific level of job security. each graph corresponds to one level of relmgmgt. 
+
+```{r}
+library(effects)
+Effect("eprc", fit3) %>% plot()
+
+library(marginaleffects)
+plot_cap(fit3, condition = c("eprc", "rmgt3"))
 
 ```
 
