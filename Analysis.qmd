@@ -28,19 +28,15 @@ data_clean <- data%>%
   tidyr::drop_na()
 
 data_clean$jobsec <- factor(data_clean$jobsec, ordered = TRUE, 
-                             levels = c("Strongly disagree", "Disagree", "Neither nor", "Agree", "Strongly agree"))
+                            levels = c("Strongly disagree", "Disagree", "Neither nor", "Agree", "Strongly agree"))
 
-#data_clean <- data_clean%>%
-#  filter(relmgmt %in% c("Very bad", "Quite bad"))
- 
+
+#data_clean$relmgmt <- factor(data_clean$relmgmt)
+
 data_clean$rmgt3 <- data_clean$relmgmt
 data_clean$rmgt3[data_clean$relmgmt %in% c("Very bad", "Quite bad")] <- "Bad"
 data_clean$rmgt3[data_clean$relmgmt %in% c("Very good", "Quite good")] <- "Good"
 data_clean$rmgt3 <- factor(data_clean$rmgt3)
-
-#data_clean$relmgmt <- factor(data_clean$relmgmt, ordered = F, 
-                             #levels = c("Very bad", "Quite bad", "Neither nor", "Quite good", "Very good"))
-
 
 glimpse(data_clean)
 ```
@@ -68,15 +64,20 @@ anova(fit0, fit2)
 Ordinal logistic regression mixed effects model with country as random effect, with clmm(): 
 
 ```{r}
-fit3 <- clmm(jobsec~ eprc * rmgt3 + unemp +ltu + sex + age + sector + fulltime + union + (1|country), data = data_clean)
+fit3 <- clmm(jobsec~ eprc * relmgmt + unemp +ltu + sex + age + sector + fulltime + union + (1|country), data = data_clean)
 
 summary(fit3)
+
+
+fit4 <- clmm(jobsec~ eprc * rmgt3 + unemp +ltu + sex + age + sector + fulltime + union + (1|country), data = data_clean)
+
+summary(fit4)
 ```
 
 
 ```{r}
-AIC(fit1,fit2,fit3)
-BIC(fit1,fit2,fit3)
+AIC(fit1,fit2,fit3,fit4)
+BIC(fit1,fit2,fit3,fit4)
 ```
 
 
@@ -94,12 +95,85 @@ Graphs.  3 graphs, 5 lines each.  Xaxis is eprc, y axis is probability of a spec
 
 ```{r}
 library(effects)
-Effect("eprc", fit3) %>% plot()
+Effect("eprc", fit4) %>% plot()
 
-library(marginaleffects)
-plot_cap(fit3, condition = c("eprc", "rmgt3"))
+
 
 ```
+
+
+odds ratio plot proc logistic
+
+
+```{r}
+coef_table <- broom.mixed::tidy(fit4, conf.int = TRUE, conf.method = "Wald")
+
+
+coef_table
+
+
+coef_table <- coef_table %>%
+  filter(!grepl("\\|", term)) %>%
+  mutate(
+    OR = exp(estimate),
+    OR_low = exp(estimate - 1.96 * std.error),
+    OR_high = exp(estimate + 1.96 * std.error),
+    term = gsub(":", " × ", term)  
+  )
+
+coef_table
+
+
+```
+
+
+```{r}
+library(ggplot2)
+
+ggplot(coef_table, aes(x = OR, y = reorder(term, OR))) +
+  geom_point(size = 3, color = "blue") +
+  geom_errorbarh(aes(xmin = OR_low, xmax = OR_high), height = 0.2, color = "red") +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  scale_x_log10() +
+  labs(
+    title = "Odds Ratios from Ordinal Logistic Regression (clmm)",
+    x = "Odds Ratio (log scale)",
+    y = ""
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+
+
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+
+
+
+ggplot(coef_table, aes(y = term, x = OR)) +
+  geom_point(shape = 18, size = 2) +  
+  geom_errorbarh(aes(xmin = OR_low, xmax = OR_high), height = 0.25) +
+  geom_vline(xintercept = 1, color = "red", linetype = "dashed", cex = 1, alpha = 0.5) +
+  xlab("Odds Ratio (95% CI)") + 
+  ylab(" ") + 
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        axis.line = element_line(colour = "black"),
+        axis.text.y = element_text(size = 12, colour = "black"),
+        axis.text.x.bottom = element_text(size = 12, colour = "black"),
+        axis.title.x = element_text(size = 12, colour = "black"))
+
+coef_table
+
+```
+
+
+
 
 
 
