@@ -1,0 +1,166 @@
+---
+title: "Analysis"
+author: "Teddie Hall"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Import data set
+
+16481 total observations 
+```{r}
+dat <- read.csv("ISSP_OECD2015_v2.csv", header = TRUE)
+dat
+
+print(summary(dat))
+```
+
+### Drop rows with missing values
+
+- 15517 observations after removing missing numerical variables
+- 13696 observations 
+```{r}
+library("dplyr")
+
+dat.dropped <- na.omit(dat)
+summary(dat.dropped)
+
+dat.dropped <- na.omit(dat.dropped %>% filter(sector != c("")
+                                            #& isco != c("")
+                                            & fulltime != c("")
+                                            & union != c("")
+                                            & relmgmt != c("")
+                                            & jobsec != c("")))
+summary(dat.dropped)
+```
+
+### Collect missing data 
+```{r}
+missing <- na.omit(dat %>% filter(sector == c("")
+                                            | isco == c("")
+                                            | fulltime == c("")
+                                            | union == c("")
+                                            | relmgmt == c("")
+                                            | jobsec == c("")))
+missing
+```
+
+Provide orders for the ordinal categorical variables
+```{r}
+dat.dropped$jobsec <- factor(dat.dropped$jobsec , levels=c("Strongly disagree", "Disagree", "Neither nor", "Agree", "Strongly agree"), ordered = TRUE)
+dat.dropped$relmgmt <- factor(dat.dropped$relmgmt , levels=c("Very bad", "Quite bad", "Neither nor", "Quite good", "Very good"), ordered = TRUE)
+```
+
+### Test for relationship between relmgmt and jobsec
+
+This $\chi^2$ test of independence will tell us if whether there is a relationship between the variables relmgmt and jobsec. If the test indicates that the variables are independent, then this provides some evidence that employee-management relations have an effect on perceived job security. Note that this test does not indicate a direction of this relationship or causality. We will need the direction of the relationship to be evaluated in the logistic regression model. 
+
+```{r}
+# Contingency table for relmgmt and jobsec
+con.table <- table(dat.dropped$relmgmt, dat.dropped$jobsec)
+con.table
+```
+```{r}
+test <- chisq.test(con.table)
+test
+```
+
+Test stat: 1051.9
+df: 16
+p-value < 2.2e-16
+
+Very small p-value means we reject the null hypothesis and conclude that there is a significant relationship between the variables relmgmt and jobsec. Indicates that employee-management relations may affect perceived job security, but the direction of this relationship needs to be confirmed through inference on the ordinal logistic regression model. 
+
+
+Contingency table to compute odds ratios from
+```{r}
+tbl2 <- table(dat.dropped$jobsec, dat.dropped$relmgmt)
+tbl2 <- cbind((con.table[1, 1:5]+con.table[2, 1:5]), 
+              con.table[3, 1:5],
+              (con.table[4, 1:5]+con.table[5, 1:5]))
+colnames(tbl2) <- c("Bad", "Neither nor", "Good")
+tbl2
+```
+Example interpretation of cumulative odds ratios:
+The cumulative odds of a good relationship with management ("Quite good" or "Very good") for those who say "Disagree" relative to those who say "Strongly disagree."
+
+Compute all the odds ratios 
+```{r}
+# Contingency table that accumulates relmgmt Bad and Neither nor
+tbl.good <- cbind(tbl2[1:5, 1]+tbl2[1:5, 2], tbl2[1:5, 3])
+colnames(tbl.good) <- c("Not good", "Good")
+
+# Contingency table that accumulates relmgmt Good and Neither nor
+tbl.bad <- cbind(tbl2[1:5, 2]+tbl2[1:5, 3], tbl2[1:5, 1])
+colnames(tbl.bad) <- c("Not bad", "Bad")
+
+tbl.good
+tbl.bad
+```
+
+```{r}
+library(epitools)
+
+# List to contain odds ratio data
+or.list <- data.frame()
+jobsec.vals <- c("Strongly disagree", "Disagree", "Neither nor", "Agree", "Strongly agree")
+
+for (i in 1:4) {
+  tbl.good.i <- rbind(tbl.good[i, 1:2], tbl.good[i+1, 1:2])
+  rownames(tbl.good.i) <- c(jobsec.vals[i], jobsec.vals[i+1])
+  
+  tbl.bad.i <- rbind(tbl.bad[i, 1:2], tbl.bad[i+1, 1:2])
+  rownames(tbl.bad.i) <- c(jobsec.vals[i], jobsec.vals[i+1])
+  
+  print(paste(jobsec.vals[i+1], jobsec.vals[i], sep = " | "))
+  print(oddsratio(tbl.good.i)$measure)
+  print(oddsratio(tbl.good.i)$p.value)
+  print(oddsratio(tbl.bad.i)$measure)
+  print(oddsratio(tbl.bad.i)$p.value)
+  
+}
+
+
+```
+
+```{r}
+#install.packages("ordinal")
+library(ordinal)
+fit <- clm(jobsec ~ relmgmt, data = dat.dropped)
+summary(fit)
+fit$coefficients
+```
+
+```{r}
+#install.packages('epitools')
+
+```
+
+Modeling with polr 
+```{r}
+library("MASS")
+
+olr <- polr(jobsec~ eprc + relmgmt + unemp +ltu + sex + age + sector + fulltime + union, data = dat.dropped)
+olr
+```
+
+```{r}
+library("lmtest")
+
+lrtest(olr)
+```
+Very small p-value so we know at least one of the predictors is significant to predicting jobsec
+
+
+```{r}
+#install.packages("generalhoslem")
+library("generalhoslem")
+
+lipsitz.test(olr, g = 10)
+logitgof(dat.dropped$jobsec, fitted(olr), ord = TRUE)
+```
+
+Small p-value for both tests so they reject the null and we conclude that the model is mis-specified 
+
