@@ -97,8 +97,6 @@ Graphs.  3 graphs, 5 lines each.  Xaxis is eprc, y axis is probability of a spec
 library(effects)
 Effect("eprc", fit4) %>% plot()
 
-
-
 ```
 
 
@@ -125,55 +123,32 @@ coef_table
 
 
 ```
+These estimates above are the log odds of each variable to the response.  The 4 response ones are intercepts. 
 
+Plot logs odds, odds, or probabilities as a function of eprc for each level of rel mgmgt
 
-```{r}
-library(ggplot2)
-
-ggplot(coef_table, aes(x = OR, y = reorder(term, OR))) +
-  geom_point(size = 3, color = "blue") +
-  geom_errorbarh(aes(xmin = OR_low, xmax = OR_high), height = 0.2, color = "red") +
-  geom_vline(xintercept = 1, linetype = "dashed") +
-  scale_x_log10() +
-  labs(
-    title = "Odds Ratios from Ordinal Logistic Regression (clmm)",
-    x = "Odds Ratio (log scale)",
-    y = ""
-  ) +
-  theme_minimal(base_size = 12)
-```
-
-
-
+to see how the odds change as eprc changes.  This pattern is different or each level of relmgmt bc there is interaction. 
 
 ```{r}
-library(ggplot2)
-library(gridExtra)
-
-
-
-ggplot(coef_table, aes(y = term, x = OR)) +
-  geom_point(shape = 18, size = 2) +  
-  geom_errorbarh(aes(xmin = OR_low, xmax = OR_high), height = 0.25) +
-  geom_vline(xintercept = 1, color = "red", linetype = "dashed", cex = 1, alpha = 0.5) +
-  xlab("Odds Ratio (95% CI)") + 
-  ylab(" ") + 
-  theme_bw() +
-  theme(panel.border = element_blank(),
-        panel.background = element_blank(),
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(), 
-        axis.line = element_line(colour = "black"),
-        axis.text.y = element_text(size = 12, colour = "black"),
-        axis.text.x.bottom = element_text(size = 12, colour = "black"),
-        axis.title.x = element_text(size = 12, colour = "black"))
-
 coef_table
-
 ```
 
+$$
+P(y_i \leq j) = \frac{exp(\theta_j - x_{i1}\beta_1 - \ldots - x_{ip}\beta_p)}{1 + exp(\theta_j - x_{i1}\beta_1 - \ldots - x_{ip}\beta_p)}
+$$
+$$
+P(y_i = j) = P(y_i \leq j) - P(y_i \leq j-1), \hbox{ for } j=2,3,4,5
+$$
 
+```{r}
+X <- model.matrix(jobsec~ eprc * rmgt3 + unemp +ltu + sex + age + sector + fulltime + union, data = data_clean)
+head(X)
+X %*% coef(fit4)
+```
 
+first create a new dataframe with the covariates I have in mind.  fix continuous things to the mean of them, then keep eprc of min to max of data, then set rgmt to be a level, set demos to a fixed level.  prediction is given what we fixed. 
+
+X* the coeffs of the fit is going to give me the linear predictors.  Then add the theta js for the different logits, then do formula for probability.  
 
 
 
