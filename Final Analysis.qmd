@@ -51,9 +51,13 @@ union2 <- ifelse(data_clean$union=="Union member", 1, 0)
 
 ```
 
-Ordinal logistic regression model using VGLM: 
+Ordinal logistic regression model using VGLM.  3 models to investigate different fits.  mod0 does not have eprc. mod1 has eprc.  mod has eprc + rmgt3 + eprc:rmgt3.   
 
 ```{r}
+mod0<- vglm(jobsec~ rmgt3 + unemp +ltu + sex2 + age + sector2 + fulltime2 + union2, data = data_clean, family = cumulative(ynames = TRUE, parallel = TRUE))
+
+mod1<- vglm(jobsec~ eprc + rmgt3 + unemp +ltu + sex2 + age + sector2 + fulltime2 + union2, data = data_clean, family = cumulative(ynames = TRUE, parallel = TRUE))
+
 mod<- vglm(jobsec~ eprc * rmgt3 + unemp +ltu + sex2 + age + sector2 + fulltime2 + union2, data = data_clean, family = cumulative(ynames = TRUE, parallel = TRUE))
 
 
@@ -61,6 +65,21 @@ summary(mod)
 
 ```
 
+Compare models for significant contributors and best fit: 
+
+```{r}
+anova(mod0, mod1, mod, type = "I", test = "LRT")
+
+AIC(mod0)
+AIC(mod1)
+AIC(mod)
+
+```
+The LRT test to compare the 3 models shows EPRC is a significant contributor to the model and eprc and rmgt3 have significant interaction, therefore we should explore the interaction and not interpret the main effects of eprc and rmgt3.  
+
+AIC shows mod with eprc * rmgt3 is preferred fit. 
+
+## Visuals to explore how eprc effects response different depending on level of rmgt3: 
 
 Probability plot, showing probability of response given each eprc value: 1,2,...,6. This is based off data where the numeric variables are set at the median value for each, and the binary variables are set to the mean of the variables (meaning the proportion of the number of baseline outcomes over the total). The rgmt variable is collapsed into 3 categories at this point: bad, neither nor, good. There are three plots where the rest of the variables are all set in the way previously mentioned and the only variable that changes is the level of rgmt3 from bad to neither nor to good.  
 
