@@ -1,0 +1,110 @@
+---
+title: "Analysis"
+author: "Susie and Teddie"
+format: pdf
+---
+
+Packages: 
+
+```{r}
+library(tidyverse)
+library(MASS)
+library(ordinal)
+library(VGAM)
+```
+
+Read in data: 
+```{r}
+data <- read_csv("ISSP_OECD2015.csv")
+data
+
+glimpse(data)
+```
+
+Clean data: 
+
+```{r}
+data_clean <- data%>%
+  dplyr::select(-isco)%>%
+  tidyr::drop_na()
+
+data_clean$jobsec <- factor(data_clean$jobsec, 
+                     ordered = TRUE, 
+                     levels = c("Strongly disagree", "Disagree", "Neither nor", "Agree", "Strongly agree"))
+
+data_clean$rmgt3 <- data_clean$relmgmt
+data_clean$rmgt3[data_clean$relmgmt %in% c("Very bad", "Quite bad")] <- "Bad"
+data_clean$rmgt3[data_clean$relmgmt %in% c("Very good", "Quite good")] <- "Good"
+data_clean$rmgt3 <- factor(data_clean$rmgt3)
+
+glimpse(data_clean)
+```
+
+Add binary variables for plots (fulltime, sex, sector, union): 
+
+```{r}
+
+fulltime2 <- ifelse(data_clean$fulltime=="Part-time", 1, 0)
+sex2 <- ifelse(data_clean$sex=="Male", 1, 0)
+sector2 <- ifelse(data_clean$sector=="Public sector", 1, 0)
+union2 <- ifelse(data_clean$union=="Union member", 1, 0)
+
+```
+
+Ordinal logistic regression model using VGLM: 
+
+```{r}
+mod<- vglm(jobsec~ eprc * rmgt3 + unemp +ltu + sex2 + age + sector2 + fulltime2 + union2, data = data_clean, family = cumulative(ynames = TRUE, parallel = TRUE))
+
+
+summary(mod)
+
+```
+
+
+Probability plot, showing probability of response given each eprc value: 1,2,...,6. This is based off data where the numeric variables are set at the median value for each, and the binary variables are set to the mean of the variables (meaning the proportion of the number of baseline outcomes over the total). The rgmt variable is collapsed into 3 categories at this point: bad, neither nor, good. There are three plots where the rest of the variables are all set in the way previously mentioned and the only variable that changes is the level of rgmt3 from bad to neither nor to good.  
+
+
+Predictions across levels of eprc for rmgt3 set to Bad: 
+
+```{r}
+new <- data.frame(eprc = 0:6, rmgt3="Bad", unemp = median(data_clean$unemp), 
+                  ltu = median(data_clean$ltu), 
+                  sex2 = mean(sex2),
+                  age = median(data_clean$age), 
+                  sector2 = mean(sector2), 
+                  fulltime2 =  mean(fulltime2),
+                  union2 = mean(union2))
+predict(mod, type = "response", newdata = new) %>% matplot(type="b")
+```
+
+Predictions across levels of eprc for rmgt3 set to Neither nor: 
+
+```{r}
+new1 <- data.frame(eprc = 0:6, rmgt3="Neither nor", unemp = median(data_clean$unemp), 
+                  ltu = median(data_clean$ltu), 
+                  sex2 = mean(sex2),
+                  age = median(data_clean$age), 
+                  sector2 = mean(sector2), 
+                  fulltime2 =  mean(fulltime2),
+                  union2 = mean(union2))
+predict(mod, type = "response", newdata = new1) %>% matplot(type="b")
+```
+
+Predictions across levels of eprc for rmgt3 set to Good: 
+
+```{r}
+new2 <- data.frame(eprc = 0:6, rmgt3="Good", unemp = median(data_clean$unemp), 
+                  ltu = median(data_clean$ltu), 
+                  sex2 = mean(sex2),
+                  age = median(data_clean$age), 
+                  sector2 = mean(sector2), 
+                  fulltime2 =  mean(fulltime2),
+                  union2 = mean(union2))
+predict(mod, type = "response", newdata = new2) %>% matplot(type="b")
+```
+
+
+
+
+

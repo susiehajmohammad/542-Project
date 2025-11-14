@@ -151,5 +151,39 @@ first create a new dataframe with the covariates I have in mind.  fix continuous
 X* the coeffs of the fit is going to give me the linear predictors.  Then add the theta js for the different logits, then do formula for probability.  
 
 
+```{r}
+names(data_clean)
+
+library(VGAM)
+fulltime2 <- ifelse(data_clean$fulltime=="Part-time", 1, 0)
+
+
+mod<- vglm(jobsec~ eprc * rmgt3 + unemp +ltu + sex + age + sector + fulltime2 + union, data = data_clean, family = cumulative(ynames = TRUE, parallel = TRUE))
+
+
+summary(mod)
+
+
+```
+
+```{r}
+new <- data.frame(eprc = 0:6, rmgt3="Good", unemp = median(data_clean$unemp), 
+                  ltu = median(data_clean$ltu), 
+                  sex = "Male",
+                  age = median(data_clean$age), sector = "Public sector", fulltime2 =  mean(fulltime2),
+                  union = "Union member")
+predict(mod, type = "response", newdata = new) %>% matplot(type="b")
+```
+
+```{r}
+pr <- predict(mod, type = "response", newdata = new)
+pr
+str(pr)
+```
+
+
+One table with min and max values from where the probabilities start at eprc and go to at 6 eprc. 16 columns with 3 in each cell because. Thats what interaction means, for different levels of rgmt eprc is going to react differently.   
+
+
 
 
