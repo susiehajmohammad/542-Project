@@ -8,6 +8,8 @@ Packages:
 
 ```{r}
 library(tidyverse)
+library(epitools)
+library(dplyr)
 library(MASS)
 library(VGAM)
 ```
@@ -49,15 +51,322 @@ union2 <- ifelse(data_clean$union=="Union member", 1, 0)
 
 ```
 
+## Exploratory Data Analysis
+
+Functions for EDA
+```{r}
+# Discrete data function
+# Prints table with counts of each category and the proportion 
+# of the data represented by each category 
+disc.eda <- function(x){
+  df.x <- data.frame(categories=x)
+  tbl <- df.x %>% group_by(categories) %>% 
+  summarise(total_count=n(),
+            .groups = 'drop')
+  tbl$percentage <- tbl$total_count/length(data_clean[,1])
+  return(tbl)
+}
+
+# Continuous data function 
+# Print summary statistics and boxplot, Q-Q plot, and histogram
+cts.eda <- function(x, varname) {
+  print(summary(x))
+  
+  boxplot(x, main=paste("Boxplot of", varname))
+  qqnorm(x, main=paste("Q-Q Plot of", varname))
+  qqline(x)
+  hist(x, main=paste("Histogram of", varname))
+}
+```
+
+```{r}
+country.tbl <- disc.eda(data_clean$country)
+country.tbl
+```
+
+```{r}
+sex.tbl <- disc.eda(data_clean$sex)
+sex.tbl
+```
+
+```{r}
+sector.tbl <- disc.eda(data_clean$sector)
+sector.tbl
+```
+
+```{r}
+fulltime.tbl <- disc.eda(data_clean$fulltime)
+fulltime.tbl
+```
+
+```{r}
+union.tbl <- disc.eda(data_clean$union)
+union.tbl
+```
+
+```{r}
+relmgmt.tbl <- disc.eda(data_clean$relmgmt)
+relmgmt.tbl
+```
+
+```{r}
+jobsec.tbl <- disc.eda(data_clean$jobsec)
+jobsec.tbl
+```
+
+```{r}
+cts.eda(data_clean$age,"age")
+```
+
+```{r}
+cts.eda(data_clean$ltu,"ltu")
+```
+
+```{r}
+cts.eda(data_clean$unemp,"unemp")
+```
+
+```{r}
+cts.eda(data_clean$eprc,"eprc")
+```
+
+### More Plots
+```{r}
+library(RColorBrewer)
+coul <- brewer.pal(5, "Set2") 
+
+tbl <- data_clean %>% group_by(country) %>% 
+  summarise(EPRC = mean(eprc),
+            UR = mean(unemp),
+            LTU = mean(ltu))
+tbl.sorted = arrange(tbl, EPRC, UR, LTU)
+
+
+par(mar = c(7.1, 4.1, 4.1, 2.1))
+barplot(tbl.sorted$EPRC, names.arg = tbl.sorted$country, 
+        space=0.1, 
+        font.axis=1, 
+        las=2, 
+        col="#69b3a2", 
+        border=NA,
+        main="EPRC in each country", 
+        ylab = "EPRC")
+
+tbl.sorted
+```
+
+```{r}
+data_clean$jobsec = as.factor(data_clean$jobsec)
+
+tbl <- data_clean %>% group_by(jobsec) %>% 
+  summarise(EPRC = mean(eprc))
+tbl.sorted = arrange(tbl, EPRC)
+
+tbl
+
+par(mar = c(7.5, 4.1, 4.1, 2.1))
+barplot(tbl$EPRC, names.arg=tbl$jobsec, 
+        space=0.1, 
+        font.axis=1, 
+        las=2, 
+        col="#69b3a2", 
+        border=NA,
+        main="Mean EPRC for each Perceived Job Security Category", 
+        ylab = "EPRC")
+```
+
+```{r}
+par(mar = c(7.5, 4.1, 4.1, 2.1))
+data_clean$jobsec<- factor(data_clean$jobsec , levels=c("Strongly disagree", "Disagree", "Neither nor", "Agree", "Strongly agree"))
+plot(data_clean$jobsec, data_clean$eprc, las=2, xlab="", ylab="EPRC",main="EPRC per Job Security Category")
+```
+
+Spain is the outlier in unemp because there are a lot of temp workers (not covered by employment protections for regular workers, EPRC)
+```{r}
+library(RColorBrewer)
+coul <- brewer.pal(5, "Set2") 
+
+tbl <- data_clean %>% group_by(country) %>% 
+  summarise(unemp = mean(unemp))
+tbl.sorted = arrange(tbl, unemp)
+
+par(mar = c(7.1, 4.1, 4.1, 2.1))
+barplot(tbl.sorted$unemp, names.arg = tbl.sorted$country, 
+        space=0.1, 
+        font.axis=1, 
+        las=2, 
+        col="#69b3a2", 
+        border=NA,
+        main="Unemployment in each country", 
+        ylab = "Unemployment")
+```
+
+Visualization to show relationship between EPRC, relmgmt, and jobsec
+```{r}
+data_clean$jobsec <- factor(data_clean$jobsec , levels=c("Strongly disagree", "Disagree", "Neither nor", "Agree", "Strongly agree"))
+data_clean$relmgmt <- factor(data_clean$relmgmt , levels=c("Very bad", "Quite bad", "Neither nor", "Quite good", "Very good"))
+
+med.eprc = median(unique(data_clean$eprc))
+med.eprc
+
+# Rows with low eprc
+dat.low.eprc = data_clean %>% filter(eprc < med.eprc)
+
+# Rows with high eprc
+dat.high.eprc = data_clean %>% filter(eprc >= med.eprc)
+
+tbl.high.eprc = table(dat.high.eprc$relmgmt, dat.high.eprc$jobsec)
+tbl.high.eprc
+```
+
+```{r}
+barplot(height=tbl.high.eprc[1,1:5], main="Perceived Job Security when Relmgmt is Very bad")
+```
+
+```{r}
+colorlist = c("#190933", "#665687", "#B084CC", "#ACFCD9", "#5DD9C1")
+barplot(tbl.high.eprc, beside=TRUE, col=colorlist,
+        main="Perceived Job Security when EPRC is High")
+legend("left", legend=rownames(tbl.high.eprc), bty="n", 
+       title="Relationship with Management",
+       fill=colorlist)
+```
+
+```{r}
+tbl.low.eprc = table(dat.low.eprc$relmgmt, dat.low.eprc$jobsec)
+
+colorlist = c("#190933", "#665687", "#B084CC", "#ACFCD9", "#5DD9C1")
+barplot(tbl.low.eprc, beside=TRUE, col=colorlist,
+        main="Perceived Job Security when EPRC is Low")
+legend("left", legend=rownames(tbl.low.eprc), bty="n", 
+       title="Relationship with Management",
+       fill=colorlist)
+```
+
+Similar plot when bars for jobsec just for relmgmt=Very bad, side-by-side of high/low eprc
+```{r}
+verybad.tbl <- rbind(tbl.low.eprc[1,1:5], tbl.high.eprc[1,1:5])
+rownames(verybad.tbl) <- c("Low EPRC", "High EPRC")
+verybad.tbl
+```
+
+```{r}
+colorlist2 = c("#665687", "#B084CC")
+barplot(verybad.tbl, beside=TRUE, col=colorlist2,
+        main="Job Security When Relationship with Management is Very Bad")
+legend("topleft", legend=rownames(verybad.tbl), bty="n", 
+       fill=colorlist2)
+```
+
+```{r}
+quitebad.tbl <- rbind(tbl.low.eprc[2,1:5], tbl.high.eprc[2,1:5])
+rownames(quitebad.tbl) <- c("Low EPRC", "High EPRC")
+
+colorlist2 = c("#665687", "#B084CC")
+barplot(quitebad.tbl, beside=TRUE, col=colorlist2,
+        main="Job Security When Relationship with Management is Quite Bad")
+legend("topleft", legend=rownames(quitebad.tbl), bty="n", 
+       fill=colorlist2)
+```
+
+```{r}
+bad.tbl <- verybad.tbl+quitebad.tbl
+verybad.tbl
+quitebad.tbl
+bad.tbl
+```
+
+```{r}
+barplot(bad.tbl, beside=TRUE, col=colorlist2,
+        main="Job Security When Relationship with Management is Bad")
+legend("topleft", legend=rownames(bad.tbl), bty="n", 
+       fill=colorlist2)
+```
+
+## Odds Ratios
+
+### Test for relationship between relmgmt and jobsec
+
+This $\chi^2$ test of independence will tell us if whether there is a relationship between the variables relmgmt and jobsec. If the test indicates that the variables are independent, then this provides some evidence that employee-management relations have an effect on perceived job security. Note that this test does not indicate a direction of this relationship or causality. We will need the direction of the relationship to be evaluated in the logistic regression model. 
+
+```{r}
+# Contingency table for relmgmt and jobsec
+con.table <- table(data_clean$relmgmt, data_clean$jobsec)
+con.table
+```
+
+```{r}
+test <- chisq.test(con.table)
+test
+```
+
+Test stat: 1051.9
+df: 16
+p-value < 2.2e-16
+
+Very small p-value means we reject the null hypothesis and conclude that there is a significant relationship between the variables relmgmt and jobsec. Indicates that employee-management relations may affect perceived job security, but the direction of this relationship needs to be confirmed through inference on the ordinal logistic regression model. 
+
+
+Contingency table to compute odds ratios from
+```{r}
+tbl2 <- table(data_clean$jobsec, data_clean$relmgmt)
+tbl2 <- cbind((con.table[1, 1:5]+con.table[2, 1:5]), 
+              con.table[3, 1:5],
+              (con.table[4, 1:5]+con.table[5, 1:5]))
+colnames(tbl2) <- c("Bad", "Neither nor", "Good")
+tbl2
+```
+Example interpretation of cumulative odds ratios:
+The cumulative odds of a good relationship with management ("Quite good" or "Very good") for those who say "Disagree" relative to those who say "Strongly disagree."
+
+Compute all the odds ratios 
+```{r}
+# Contingency table that accumulates relmgmt Bad and Neither nor
+tbl.good <- cbind(tbl2[1:5, 1]+tbl2[1:5, 2], tbl2[1:5, 3])
+colnames(tbl.good) <- c("Not good", "Good")
+
+# Contingency table that accumulates relmgmt Good and Neither nor
+tbl.bad <- cbind(tbl2[1:5, 2]+tbl2[1:5, 3], tbl2[1:5, 1])
+colnames(tbl.bad) <- c("Not bad", "Bad")
+
+tbl.good
+tbl.bad
+```
+
+```{r}
+# List to contain odds ratio data
+or.list <- data.frame()
+jobsec.vals <- c("Strongly disagree", "Disagree", "Neither nor", "Agree", "Strongly agree")
+
+for (i in 1:4) {
+  tbl.good.i <- rbind(tbl.good[i, 1:2], tbl.good[i+1, 1:2])
+  rownames(tbl.good.i) <- c(jobsec.vals[i], jobsec.vals[i+1])
+  
+  tbl.bad.i <- rbind(tbl.bad[i, 1:2], tbl.bad[i+1, 1:2])
+  rownames(tbl.bad.i) <- c(jobsec.vals[i], jobsec.vals[i+1])
+  
+  print(paste(jobsec.vals[i+1], jobsec.vals[i], sep = " | "))
+  print(oddsratio(tbl.good.i)$measure)
+  print(oddsratio(tbl.good.i)$p.value)
+  print(oddsratio(tbl.bad.i)$measure)
+  print(oddsratio(tbl.bad.i)$p.value)
+  
+}
+```
+
+## Ordinal Logistic Regression
+
 Ordinal logistic regression model using VGLM.  3 models to investigate different fits.  mod0 does not have eprc. mod1 has eprc.  mod has eprc + rmgt3 + eprc:rmgt3.   
 
 ```{r}
-mod0<- vglm(jobsec~ rmgt3 + unemp +ltu + sex2 + age + sector2 + fulltime2 + union2, data = data_clean, family = cumulative(ynames = TRUE, parallel = TRUE))
+mod0<- vglm(jobsec~ rmgt3 + unemp +ltu + sex2 + age + sector2 + fulltime2 + union2, 
+            data = data_clean, family = cumulative(ynames = TRUE, parallel = TRUE))
 
-mod1<- vglm(jobsec~ eprc + rmgt3 + unemp +ltu + sex2 + age + sector2 + fulltime2 + union2, data = data_clean, family = cumulative(ynames = TRUE, parallel = TRUE))
+mod1<- vglm(jobsec~ eprc + rmgt3 + unemp +ltu + sex2 + age + sector2 + fulltime2 + union2, 
+            data = data_clean, family = cumulative(ynames = TRUE, parallel = TRUE))
 
-mod<- vglm(jobsec~ eprc * rmgt3 + unemp +ltu + sex2 + age + sector2 + fulltime2 + union2, data = data_clean, family = cumulative(ynames = TRUE, parallel = TRUE))
-
+mod<- vglm(jobsec~ eprc * rmgt3 + unemp +ltu + sex2 + age + sector2 + fulltime2 + union2, 
+           data = data_clean, family = cumulative(ynames = TRUE, parallel = TRUE))
 
 summary(mod)
 
@@ -77,7 +386,7 @@ The LRT test to compare the 3 models shows EPRC is a significant contributor to 
 
 AIC shows mod with eprc * rmgt3 is preferred fit. 
 
-## Visuals to explore how eprc effects response different depending on level of rmgt3: 
+### Visuals to explore how eprc effects response different depending on level of rmgt3: 
 
 Probability plot, showing probability of response given each eprc value: 1,2,...,6. This is based off data where the numeric variables are set at the median value for each, and the binary variables are set to the mean of the variables (meaning the proportion of the number of baseline outcomes over the total). The rgmt variable is collapsed into 3 categories at this point: bad, neither nor, good. There are three plots where the rest of the variables are all set in the way previously mentioned and the only variable that changes is the level of rgmt3 from bad to neither nor to good.  
 
@@ -217,8 +526,3 @@ ggplot(long_pred_good, aes(x = eprc, y = prob, color = jobsec)) +
       "Strongly disagree" = "red3"))
 
 ```
-
-
-
-
-
