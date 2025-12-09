@@ -6,7 +6,7 @@ format: pdf
 
 Packages: 
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 library(tidyverse)
 library(epitools)
 library(dplyr)
