@@ -3,24 +3,24 @@ title: "Analysis"
 author: "Susie and Teddie"
 format: pdf
 ---
-Packages: 
 
-```{r}
+Packages:
+
+```{r, warning=FALSE, message=FALSE}
 library(tidyverse)
 library(MASS)
 library(ordinal)
 ```
 
+Read in data:
 
-Read in data: 
 ```{r}
 data <- read_csv("ISSP_OECD2015.csv")
-data
 
 glimpse(data)
 ```
 
-Drop rows with missing values, except for ISCO column. (Per PI)
+Drop rows with missing values, and remove ISCO column. Collapse relationship with management into 3 levels: bad- comprised of Very Bad and Quite Bad, Neither Nor- comprised of just Neither Nor, good- comprised of Very Good and Quite Good. (Per PI)
 
 ```{r}
 data_clean <- data%>%
@@ -30,9 +30,6 @@ data_clean <- data%>%
 data_clean$jobsec <- factor(data_clean$jobsec, ordered = TRUE, 
                             levels = c("Strongly disagree", "Disagree", "Neither nor", "Agree", "Strongly agree"))
 
-
-#data_clean$relmgmt <- factor(data_clean$relmgmt)
-
 data_clean$rmgt3 <- data_clean$relmgmt
 data_clean$rmgt3[data_clean$relmgmt %in% c("Very bad", "Quite bad")] <- "Bad"
 data_clean$rmgt3[data_clean$relmgmt %in% c("Very good", "Quite good")] <- "Good"
@@ -40,9 +37,10 @@ data_clean$rmgt3 <- factor(data_clean$rmgt3)
 
 glimpse(data_clean)
 ```
-Response, y = jobsec.  5 level ordinal response. 
 
-Fixed effect with clm(): 
+Response, y = jobsec. 5 level ordinal response.
+
+Fixed effect with clm():
 
 ```{r}
 
@@ -61,7 +59,7 @@ anova(fit0, fit2)
 
 ```
 
-Ordinal logistic regression mixed effects model with country as random effect, with clmm(): 
+Ordinal logistic regression mixed effects model with country as random effect, with clmm():
 
 ```{r}
 fit3 <- clmm(jobsec~ eprc * relmgmt + unemp +ltu + sex + age + sector + fulltime + union + (1|country), data = data_clean)
@@ -74,24 +72,18 @@ fit4 <- clmm(jobsec~ eprc * rmgt3 + unemp +ltu + sex + age + sector + fulltime +
 summary(fit4)
 ```
 
-
 ```{r}
 AIC(fit1,fit2,fit3,fit4)
 BIC(fit1,fit2,fit3,fit4)
 ```
 
+Odds:
 
+bad neutral good, some way to combine odds?
 
+Job security 5 levels.
 
-
-Odds: 
-
-bad neutral good, some way to combine odds? 
-
-Job security 5 levels.  
-
-
-Graphs.  3 graphs, 5 lines each.  Xaxis is eprc, y axis is probability of a specific level of job security. each graph corresponds to one level of relmgmgt. 
+Graphs. 3 graphs, 5 lines each. Xaxis is eprc, y axis is probability of a specific level of job security. each graph corresponds to one level of relmgmgt.
 
 ```{r}
 library(effects)
@@ -99,9 +91,7 @@ Effect("eprc", fit4) %>% plot()
 
 ```
 
-
 odds ratio plot proc logistic
-
 
 ```{r}
 coef_table <- broom.mixed::tidy(fit4, conf.int = TRUE, conf.method = "Wald")
@@ -123,11 +113,12 @@ coef_table
 
 
 ```
-These estimates above are the log odds of each variable to the response.  The 4 response ones are intercepts. 
+
+These estimates above are the log odds of each variable to the response. The 4 response ones are intercepts.
 
 Plot logs odds, odds, or probabilities as a function of eprc for each level of rel mgmgt
 
-to see how the odds change as eprc changes.  This pattern is different or each level of relmgmt bc there is interaction. 
+to see how the odds change as eprc changes. This pattern is different or each level of relmgmt bc there is interaction.
 
 ```{r}
 coef_table
@@ -135,7 +126,8 @@ coef_table
 
 $$
 P(y_i \leq j) = \frac{exp(\theta_j - x_{i1}\beta_1 - \ldots - x_{ip}\beta_p)}{1 + exp(\theta_j - x_{i1}\beta_1 - \ldots - x_{ip}\beta_p)}
-$$
+$$ 
+
 $$
 P(y_i = j) = P(y_i \leq j) - P(y_i \leq j-1), \hbox{ for } j=2,3,4,5
 $$
@@ -146,10 +138,9 @@ head(X)
 X %*% coef(fit4)
 ```
 
-first create a new dataframe with the covariates I have in mind.  fix continuous things to the mean of them, then keep eprc of min to max of data, then set rgmt to be a level, set demos to a fixed level.  prediction is given what we fixed. 
+first create a new dataframe with the covariates I have in mind. fix continuous things to the mean of them, then keep eprc of min to max of data, then set rgmt to be a level, set demos to a fixed level. prediction is given what we fixed.
 
-X* the coeffs of the fit is going to give me the linear predictors.  Then add the theta js for the different logits, then do formula for probability.  
-
+X\* the coeffs of the fit is going to give me the linear predictors. Then add the theta js for the different logits, then do formula for probability.
 
 ```{r}
 names(data_clean)
@@ -181,9 +172,4 @@ pr
 str(pr)
 ```
 
-
-One table with min and max values from where the probabilities start at eprc and go to at 6 eprc. 16 columns with 3 in each cell because. Thats what interaction means, for different levels of rgmt eprc is going to react differently.   
-
-
-
-
+One table with min and max values from where the probabilities start at eprc and go to at 6 eprc. 16 columns with 3 in each cell because. Thats what interaction means, for different levels of rgmt eprc is going to react differently.

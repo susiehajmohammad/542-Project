@@ -112,10 +112,13 @@ Two-way contingency jobsec and relmgmt:
 ```{r}
 table(data_clean$jobsec, data_clean$relmgmt)
 
+data_clean_pl <- data_clean%>%
+  mutate(rmgt3 = factor(rmgt3, ordered = TRUE, levels = c("Bad", "Neither nor", "Good")))
 
-ggplot(data_clean, aes(x = relmgmt, fill = jobsec)) +
+ggplot(data_clean_pl, aes(x = rmgt3, fill = jobsec)) +
   geom_bar(position = "dodge")+
-  theme_classic()
+  theme_classic()+
+  labs(x = "Relationship with Management", y = "")
 ```
 
 

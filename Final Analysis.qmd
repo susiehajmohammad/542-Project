@@ -9,14 +9,12 @@ Packages:
 ```{r}
 library(tidyverse)
 library(MASS)
-library(ordinal)
 library(VGAM)
 ```
 
 Read in data: 
 ```{r}
 data <- read_csv("ISSP_OECD2015.csv")
-data
 
 glimpse(data)
 ```
@@ -40,7 +38,7 @@ data_clean$rmgt3 <- factor(data_clean$rmgt3)
 glimpse(data_clean)
 ```
 
-Add binary variables for plots (fulltime, sex, sector, union): 
+Convert fulltime, sex, sector, union to binary variables for plots: 
 
 ```{r}
 
@@ -95,6 +93,39 @@ new <- data.frame(eprc = 0:6, rmgt3="Bad", unemp = median(data_clean$unemp),
                   fulltime2 =  mean(fulltime2),
                   union2 = mean(union2))
 predict(mod, type = "response", newdata = new) %>% matplot(type="b")
+
+predict_bad <- predict(mod, type = "response", newdata = new)
+
+## nicer graph in ggplot
+pred_bad <- cbind(new, predict_bad)
+
+long_pred_bad <- pred_bad %>%
+     pivot_longer(cols = colnames(predict_bad),
+    names_to = "jobsec",
+    values_to = "prob")%>%
+  mutate(jobsec = factor(jobsec, levels = c(
+        "Strongly agree",
+        "Agree",
+        "Neither nor",
+        "Disagree",
+        "Strongly disagree"), ordered = TRUE))
+
+ggplot(long_pred_bad, aes(x = eprc, y = prob, color = jobsec)) +
+  geom_line(linewidth = 1.5) +
+  labs(x = "Employment protection score (eprc)",
+    y = "Estimated probability",
+    color = "Job Security",
+    title = "Estimated Probability of Job Security across EPRC",
+    subtitle = "Relationship with Management: Bad") +
+  theme_classic() +
+  scale_color_manual(values = c(
+      "Strongly agree"    = "black",
+      "Agree"             = "darkgrey",
+      "Neither nor"       = "khaki",
+      "Disagree"          = "coral",
+      "Strongly disagree" = "red3"))
+
+
 ```
 
 Predictions across levels of eprc for rmgt3 set to Neither nor: 
@@ -108,6 +139,38 @@ new1 <- data.frame(eprc = 0:6, rmgt3="Neither nor", unemp = median(data_clean$un
                   fulltime2 =  mean(fulltime2),
                   union2 = mean(union2))
 predict(mod, type = "response", newdata = new1) %>% matplot(type="b")
+
+predict_neither <- predict(mod, type = "response", newdata = new1)
+
+## nicer graph in ggplot
+pred_neither <- cbind(new1, predict_neither)
+
+long_pred_neither <- pred_neither %>%
+     pivot_longer(cols = colnames(predict_neither),
+    names_to = "jobsec",
+    values_to = "prob")%>%
+  mutate(jobsec = factor(jobsec, levels = c(
+        "Strongly agree",
+        "Agree",
+        "Neither nor",
+        "Disagree",
+        "Strongly disagree"), ordered = TRUE))
+
+ggplot(long_pred_neither, aes(x = eprc, y = prob, color = jobsec)) +
+  geom_line(linewidth = 1.5) +
+  labs(x = "Employment protection score (eprc)",
+    y = "Estimated probability",
+    color = "Job Security",
+    title = "Estimated Probability of Job Security across EPRC",
+    subtitle = "Relationship with Management: Neither") +
+  theme_classic() +
+  scale_color_manual(values = c(
+      "Strongly agree"    = "black",
+      "Agree"             = "darkgrey",
+      "Neither nor"       = "khaki",
+      "Disagree"          = "coral",
+      "Strongly disagree" = "red3"))
+
 ```
 
 Predictions across levels of eprc for rmgt3 set to Good: 
@@ -121,6 +184,38 @@ new2 <- data.frame(eprc = 0:6, rmgt3="Good", unemp = median(data_clean$unemp),
                   fulltime2 =  mean(fulltime2),
                   union2 = mean(union2))
 predict(mod, type = "response", newdata = new2) %>% matplot(type="b")
+
+predict_good <- predict(mod, type = "response", newdata = new2)
+
+## nicer graph in ggplot
+pred_good <- cbind(new2, predict_good)
+
+long_pred_good<- pred_good %>%
+     pivot_longer(cols = colnames(predict_good),
+    names_to = "jobsec",
+    values_to = "prob")%>%
+  mutate(jobsec = factor(jobsec, levels = c(
+        "Strongly agree",
+        "Agree",
+        "Neither nor",
+        "Disagree",
+        "Strongly disagree"), ordered = TRUE))
+
+ggplot(long_pred_good, aes(x = eprc, y = prob, color = jobsec)) +
+  geom_line(linewidth = 1.5) +
+  labs(x = "Employment protection score (eprc)",
+    y = "Estimated probability",
+    color = "Job Security",
+    title = "Estimated Probability of Job Security across EPRC",
+    subtitle = "Relationship with Management: Good") +
+  theme_classic() +
+  scale_color_manual(values = c(
+      "Strongly agree"    = "black",
+      "Agree"             = "darkgrey",
+      "Neither nor"       = "khaki",
+      "Disagree"          = "coral",
+      "Strongly disagree" = "red3"))
+
 ```
 
 
